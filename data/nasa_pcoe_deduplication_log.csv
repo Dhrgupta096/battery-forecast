@@ -1,0 +1,5 @@
+battery,kept_from_archive,duplicate_in_archive,md5_kept,md5_duplicate,identical_md5,action
+B0025,2. BatteryAgingARC_25_26_27_28_P1.zip,3. BatteryAgingARC_25-44.zip,db232e70ab4ea183aaa058b14198b9dd,db232e70ab4ea183aaa058b14198b9dd,True,Skipped identical duplicate .mat archive entry
+B0026,2. BatteryAgingARC_25_26_27_28_P1.zip,3. BatteryAgingARC_25-44.zip,b59ffb11158f7f14e59b29f0dc0eedf6,b59ffb11158f7f14e59b29f0dc0eedf6,True,Skipped identical duplicate .mat archive entry
+B0027,2. BatteryAgingARC_25_26_27_28_P1.zip,3. BatteryAgingARC_25-44.zip,61443f2f11fdb64a0afbb17547365fd0,61443f2f11fdb64a0afbb17547365fd0,True,Skipped identical duplicate .mat archive entry
+B0028,2. BatteryAgingARC_25_26_27_28_P1.zip,3. BatteryAgingARC_25-44.zip,849492a838b6b61ab7b400d177917513,849492a838b6b61ab7b400d177917513,True,Skipped identical duplicate .mat archive entry

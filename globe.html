@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Newsreader:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#FBFBFA; --surface:#FFFFFF; --alt:#F7F6F3; --line:#EAEAEA; --text:#2F3437; --mute:#787774; --ink:#111111;
+          --blue:#2F4B63; --terra:#B5543A; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:13px/1.5 'Geist','Helvetica Neue',sans-serif; }
+  .mono { font-family:'Geist Mono','SF Mono',monospace; }
+  #app { display:grid; grid-template-columns:260px minmax(0,1fr) 340px; gap:12px; height:100%; padding:2px 2px 2px; }
+  .col { background:var(--surface); border:1px solid var(--line); border-radius:10px; display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .pad { padding:16px 16px 12px; }
+  h1 { font:600 18px/1.2 'Newsreader',Georgia,serif; letter-spacing:-.01em; margin:0; color:var(--ink); }
+  h2 { font:600 20px/1.2 'Newsreader',Georgia,serif; letter-spacing:-.01em; margin:0; color:var(--ink); }
+  .k { color:var(--mute); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; }
+  .rows { margin:8px 0 0; padding:0; }
+  .rows > div { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .rows > div:last-child { border-bottom:0; }
+  .rows dt { color:var(--mute); font-size:12px; margin:0; }
+  .rows dd { margin:0; font-family:'Geist Mono',monospace; font-size:12.5px; color:var(--ink); text-align:right; }
+  .tag { display:inline-block; padding:1px 9px; border-radius:9999px; font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+  .t-real { background:#EDF3EC; color:#346538; } .t-mod { background:#E1F3FE; color:#1F6C9F; } .t-hyp { background:#FBF3DB; color:#956400; }
+  .sec { padding:14px 16px; border-top:1px solid var(--line); }
+  .sech { display:flex; justify-content:space-between; align-items:center; }
+  /* left column */
+  #clock { font-size:20px; font-weight:500; color:var(--ink); margin-top:8px; }
+  #search { width:100%; margin-top:12px; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--alt); color:var(--text); font:inherit; outline:none; }
+  #search:focus { border-color:#9a9a96; background:#fff; }
+  #filters { display:flex; gap:4px; margin-top:8px; }
+  #filters button { flex:1; padding:4px 0; font:500 10.5px 'Geist Mono',monospace; border:1px solid var(--line); border-radius:5px; background:var(--alt); color:var(--mute); cursor:pointer; }
+  #filters button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  #list { flex:1; overflow:auto; border-top:1px solid var(--line); margin-top:8px; }
+  #list div { display:flex; align-items:center; gap:8px; padding:7px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
+  #list div:hover, #list div:focus, #list div.on { background:var(--alt); outline:none; }
+  #list .n { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+  #list .cls { font-size:9.5px; padding:1px 5px; border-radius:4px; background:var(--alt); border:1px solid var(--line); color:var(--mute); }
+  #list .id { color:var(--mute); font-size:11px; }
+  .sw { width:9px; height:9px; border-radius:50%; border:1px solid rgba(0,0,0,.35); flex:none; display:inline-block; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 12px; padding:10px 16px; border-top:1px solid var(--line); color:var(--mute); font-size:11px; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  #pingdot { width:7px; height:7px; border-radius:50%; background:#B8B8B4; display:inline-block; margin-right:6px; }
+  /* globe */
+  #stage { position:relative; background:#ECEBE7; border:1px solid var(--line); border-radius:10px; overflow:hidden; min-width:0; }
+  #globe { position:absolute; inset:0; } #globe canvas { filter:saturate(.8); }
+  #hint { position:absolute; left:14px; bottom:12px; font-size:11px; color:var(--mute); background:rgba(255,255,255,.85); padding:4px 10px; border:1px solid var(--line); border-radius:6px; }
+  #err { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:none; background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 20px; text-align:center; color:var(--text); }
+  /* detail */
+  #detail { overflow:auto; display:none; }
+  #empty { padding:24px 20px; color:var(--mute); line-height:1.6; }
+  #bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:8px; }
+  #bar i { display:block; height:100%; width:0; background:var(--blue); transform-origin:left; transition:width .4s; }
+  .big { font:500 28px/1 'Geist Mono',monospace; color:var(--ink); }
+  #count { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:10px; }
+  #count .u { text-align:center; border:1px solid var(--line); border-radius:6px; padding:7px 0 5px; background:var(--alt); }
+  #count .n { font:500 17px/1.1 'Geist Mono',monospace; color:var(--ink); } #count .l { font-size:9.5px; letter-spacing:.1em; color:var(--mute); margin-top:2px; }
+  label { display:block; font-size:12px; color:var(--mute); margin-top:10px; }
+  input[type=range] { width:100%; accent-color:var(--blue); margin:4px 0 0; }
+  select { width:100%; margin-top:4px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--alt); color:var(--text); font:inherit; }
+  .warn { font-size:11.5px; color:#956400; background:#FBF3DB; border-radius:6px; padding:8px 10px; margin-top:10px; line-height:1.5; }
+  .fine { font-size:11px; color:var(--mute); line-height:1.55; }
+  .eclipse { color:var(--blue); } .sunlit { color:#956400; }
+  @keyframes rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  @keyframes fade { from { opacity:0; } to { opacity:1; } }
+  #app > * { animation:rise .7s cubic-bezier(.16,1,.3,1) both; } #app > *:nth-child(2) { animation-delay:.08s; } #app > *:nth-child(3) { animation-delay:.16s; }
+  #hint { animation:fade 1.2s .8s both; } #list div { animation:fade .3s both; }
+  #detail.enter > * { animation:rise .55s cubic-bezier(.16,1,.3,1) both; }
+  #detail.enter > *:nth-child(2) { animation-delay:.05s; } #detail.enter > *:nth-child(3) { animation-delay:.1s; }
+  #detail.enter > *:nth-child(4) { animation-delay:.15s; } #detail.enter > *:nth-child(5) { animation-delay:.2s; }
+  #pingdot { transition:background .3s; } #list div, .rows dd { transition:background .2s; }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+  ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-thumb { background:#D5D5D1; border-radius:6px; }
+  @media (max-width:1000px) { #app { grid-template-columns:220px minmax(0,1fr); } #detail.show { position:absolute; right:6px; top:6px; bottom:6px; width:330px; z-index:5; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside class="col" aria-label="Satellite list">
+    <div class="pad">
+      <h1>Live orbit tracker</h1>
+      <div id="clock" class="mono">--:--:-- UTC</div>
+      <dl class="rows" style="margin-top:10px">
+        <div><dt>Objects</dt><dd id="objs">0</dd></div>
+        <div><dt>Orbit data</dt><dd id="src">-</dd></div>
+        <div><dt>Fetched</dt><dd id="age">-</dd></div>
+        <div><dt>Ping to CelesTrak</dt><dd><i id="pingdot"></i><span id="ping">measuring</span></dd></div>
+      </dl>
+      <input id="search" placeholder="Search name or NORAD ID" aria-label="Search satellites" autocomplete="off">
+      <div id="filters" role="group" aria-label="Filter by orbit class">
+        <button data-c="ALL" class="on">ALL</button><button data-c="LEO">LEO</button><button data-c="MEO">MEO</button><button data-c="GEO">GEO</button><button data-c="HEO">HEO</button>
+      </div>
+    </div>
+    <div id="list" role="listbox" aria-label="Satellites"></div>
+    <div class="legend">
+      <span><i class="sw" style="background:#F1C453"></i>LEO</span><span><i class="sw" style="background:#FFFFFF"></i>MEO</span>
+      <span><i class="sw" style="background:#9B8CC4"></i>GEO</span><span><i class="sw" style="background:#E58F7C"></i>HEO</span>
+      <span><i class="sw" style="background:#111"></i>Selected</span>
+    </div>
+  </aside>
+
+  <main id="stage"><div id="globe" role="img" aria-label="3D Earth with satellite positions propagated from CelesTrak element sets"></div>
+    <div id="err"></div><div id="hint">Drag to rotate, scroll to zoom, click a satellite to analyse it</div></main>
+
+  <aside class="col" id="side" aria-live="polite">
+    <div id="empty">Select a satellite on the globe or from the list. Live orbital values are computed from its latest public element set.
+      The battery section is a hypothetical scenario built on NASA laboratory data.</div>
+    <div id="detail">
+      <div class="pad" style="padding-bottom:12px">
+        <h2 id="sname">-</h2><div class="fine mono" id="sid"></div>
+      </div>
+
+      <div class="sec"><div class="sech"><span class="k">Orbit now</span><span class="tag t-real">Real, SGP4</span></div>
+        <dl class="rows">
+          <div><dt>Latitude</dt><dd id="lat"></dd></div><div><dt>Longitude</dt><dd id="lng"></dd></div>
+          <div><dt>Altitude</dt><dd id="alt"></dd></div><div><dt>Speed</dt><dd id="vel"></dd></div>
+          <div><dt>Period / class</dt><dd id="per"></dd></div><div><dt>Inclination</dt><dd id="inc"></dd></div>
+          <div><dt>Element-set age</dt><dd id="tleage"></dd></div><div><dt>Illumination</dt><dd id="ill"></dd></div>
+        </dl></div>
+
+      <div class="sec"><div class="sech"><span class="k">Eclipse cycling</span><span class="tag t-mod">Modelled</span></div>
+        <dl class="rows">
+          <div><dt>Eclipse this orbit</dt><dd id="ecl"></dd></div><div><dt>Orbits with eclipse (1 yr)</dt><dd id="eclfrac"></dd></div>
+          <div><dt>Eclipse cycles / day</dt><dd id="cpd"></dd></div><div><dt>Lab-equivalent cycles / day</dt><dd id="eqcpd"></dd></div>
+        </dl>
+        <label for="dod">Assumed depth of discharge per eclipse: <b id="dodv" class="mono"></b></label>
+        <input type="range" id="dod" min="5" max="100" step="1" value="25">
+        <label for="ref">Cycle-count start (assumption)</label>
+        <select id="ref"><option value="fresh">Fresh NASA-type cell, cycling from now</option>
+          <option value="launch">Cycling since launch year (mid-year assumed)</option></select></div>
+
+      <div class="sec"><div class="sech"><span class="k">Battery forecast</span><span class="tag t-hyp">Hypothetical</span></div>
+        <div class="fine" style="margin-top:6px">NASA <span id="batname"></span> regression, threshold <span id="thr"></span></div>
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:12px">
+          <div><div class="k">Projected state of health</div><div class="big" id="soh">-</div></div>
+          <div style="text-align:right"><div class="k">Usable life used</div><div class="big" style="font-size:20px" id="life">-</div></div></div>
+        <div id="bar"><i></i></div>
+        <dl class="rows" style="margin-top:10px">
+          <div><dt>Projected capacity</dt><dd id="capnow"></dd></div><div><dt>Cycles elapsed (assumed)</dt><dd id="know"></dd></div>
+          <div><dt>Threshold cycle</dt><dd id="kstar"></dd></div><div><dt>Cycle range (± test RMSE)</dt><dd id="kwin"></dd></div>
+        </dl>
+        <div class="k" style="margin-top:12px">Threshold crossing (UTC)</div>
+        <div class="mono" style="font-size:15px; color:var(--terra); margin-top:2px" id="tdate">-</div>
+        <div id="count"></div>
+        <div class="fine mono" id="tdur" style="margin-top:8px"></div>
+        <div class="warn" id="warn"></div>
+      </div>
+      <div class="sec fine">Ĉ(k) = β₀ + β₁k, solved by Gaussian and Gauss–Jordan elimination on NASA PCoE training cycles only.
+        Cycle-to-time conversion uses the orbit geometry and depth-of-discharge assumptions above. <b>This is not validated satellite
+        remaining useful life.</b> No spacecraft battery telemetry is used, because it is not publicly streamed.</div>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
+<script>
+const sat = window.satellite;
+
+const P = __PAYLOAD__;
+const RE = 6371, DAY = 86400000;
+const $ = id => document.getElementById(id);
+const COLORS = { LEO:'#F1C453', MEO:'#FFFFFF', GEO:'#9B8CC4', HEO:'#E58F7C' };
+const fixed = (v, n) => v.toFixed(n);
+
+$('batname').textContent = P.battery;
+$('thr').textContent = `${P.threshold.toFixed(3)} Ah`;
+$('src').textContent = { live:'live download', cached:'cached file', mixed:'live + cached', unavailable:'offline' }[P.source] || '-';
+$('objs').textContent = P.tles.length;
+function ageText() {
+  if (!P.fetched) return 'n/a';
+  const m = (Date.now() - Date.parse(P.fetched)) / 60000;
+  return m < 120 ? `${m.toFixed(0)} min ago` : `${(m / 60).toFixed(1)} h ago`;
+}
+if (!P.tles.length) { $('err').style.display = 'block'; $('err').innerHTML = 'No orbital data available (offline).<br>No positions are shown rather than inventing them.'; }
+
+// ---------- live ping to CelesTrak (browser round trip, measured)
+async function ping() {
+  const t0 = performance.now();
+  try {
+    await fetch('https://celestrak.org/favicon.ico?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store' });
+    const ms = performance.now() - t0;
+    $('ping').textContent = ms.toFixed(0) + ' ms';
+    $('pingdot').style.background = ms < 300 ? '#4F7A5A' : (ms < 800 ? '#B07A1E' : '#B5543A');
+  } catch { $('ping').textContent = 'unreachable'; $('pingdot').style.background = '#B5543A'; }
+}
+ping(); setInterval(ping, 10000);
+
+// ---------- sun & shadow (low-precision solar ephemeris + cylindrical Earth shadow)
+function sunHat(date) {
+  const n = date.getTime() / DAY + 2440587.5 - 2451545.0, r = Math.PI / 180;
+  const L = 280.460 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * r;
+  const lam = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * r, eps = (23.439 - 4e-7 * n) * r;
+  return [Math.cos(lam), Math.cos(eps) * Math.sin(lam), Math.sin(eps) * Math.sin(lam)];
+}
+function inShadow(p, s) {
+  const d = p.x * s[0] + p.y * s[1] + p.z * s[2];
+  if (d > 0) return false;
+  return Math.hypot(p.x - d * s[0], p.y - d * s[1], p.z - d * s[2]) < RE;
+}
+
+// ---------- satellites
+const sats = P.tles.map(([name, l1, l2]) => {
+  const rec = sat.twoline2satrec(l1, l2);
+  const yy = parseInt(l1.substring(9, 11)), launchYear = isNaN(yy) ? null : (yy < 57 ? 2000 + yy : 1900 + yy);
+  const ey = parseInt(l1.substring(18, 20)), epoch = Date.UTC(ey < 57 ? 2000 + ey : 1900 + ey, 0, 1) + (parseFloat(l1.substring(20, 32)) - 1) * DAY;
+  const revDay = rec.no * 1440 / (2 * Math.PI);
+  return { name: name.replace(/^0 /, '').trim(), norad: l1.substring(2, 7).trim(), cospar: l1.substring(9, 17).trim(),
+           rec, launchYear, epoch, revDay, periodMin: 1440 / revDay, ecc: rec.ecco, incl: rec.inclo * 180 / Math.PI };
+}).filter(d => { const p = sat.propagate(d.rec, new Date()); return p.position && !isNaN(p.position.x); });
+$('objs').textContent = sats.length;
+
+function state(d, t) {
+  const pv = sat.propagate(d.rec, t);
+  if (!pv.position || isNaN(pv.position.x)) return null;
+  const gd = sat.eciToGeodetic(pv.position, sat.gstime(t));
+  return { pos: pv.position, vel: pv.velocity, lat: sat.degreesLat(gd.latitude), lng: sat.degreesLong(gd.longitude), h: gd.height };
+}
+const orbitClass = (d, h) => d.ecc > 0.25 ? 'HEO' : (h < 2000 ? 'LEO' : (h < 30000 ? 'MEO' : 'GEO'));
+
+const stage = $('stage');
+const world = Globe({ animateIn: false })($('globe'))
+  .width(stage.clientWidth).height(stage.clientHeight)
+  .backgroundColor('rgba(0,0,0,0)')
+  .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-day.jpg')
+  .bumpImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png')
+  .atmosphereColor('#9DB4C4').atmosphereAltitude(0.14)
+  .pointLat('lat').pointLng('lng').pointAltitude(d => Math.min(0.45, Math.max(0.015, d.alt * 0.35)))
+  .pointRadius(d => selected && d.norad === selected.norad ? 0.62 : 0.32)
+  .pointColor(d => selected && d.norad === selected.norad ? '#111111' : (COLORS[d.cls] || '#2F4B63'))
+  .pointLabel(d => `<div style="font:12px Geist,sans-serif;background:#fff;color:#2F3437;padding:4px 8px;border:1px solid #EAEAEA;border-radius:6px">${d.name}<br><span style="color:#787774">${d.cls} · ${(d.alt * RE).toFixed(0)} km</span></div>`)
+  .ringColor(() => t => `rgba(181,84,58,${1 - t})`).ringMaxRadius(4).ringPropagationSpeed(1.6).ringRepeatPeriod(1400)
+  .pathPoints('pts').pathPointLat(p => p[0]).pathPointLng(p => p[1]).pathPointAlt(p => p[2])
+  .pathColor(() => '#B5543A').pathStroke(1.4).pathTransitionDuration(0)
+  .onPointClick(d => select(d))
+  .onPointHover(d => { $('globe').style.cursor = d ? 'pointer' : 'grab'; });
+new ResizeObserver(() => world.width(stage.clientWidth).height(stage.clientHeight)).observe(stage);
+world.ringAltitude(d => Math.min(0.45, Math.max(0.015, d.alt * 0.35))); world.controls().autoRotate = true; world.controls().autoRotateSpeed = 0.2;
+world.pointOfView({ altitude: 2.4 });
+
+let selected = null, selToken = 0, eclYear = null, eclNow = null, t0Fresh = new Date();
+
+function tick() {
+  const t = new Date();
+  for (const d of sats) {
+    const s = state(d, t); if (!s) continue;
+    d.lat = s.lat; d.lng = s.lng; d.alt = s.h / RE; d.cls = d.cls || orbitClass(d, s.h);
+  }
+  world.pointsData(clsFilter === 'ALL' ? sats : sats.filter(d => d.cls === clsFilter));
+  if (selected) world.ringsData([{ lat: selected.lat, lng: selected.lng, alt: selected.alt }]);
+  $('clock').textContent = t.toISOString().substring(11, 19) + ' UTC';
+  $('age').textContent = ageText();
+  if (selected) updateCard(t);
+}
+
+// ---------- eclipse statistics (chunked so the page stays responsive)
+const yieldUI = () => new Promise(r => setTimeout(r, 0));
+async function eclipseYear(d, t, token) {
+  const per = d.periodMin * 60000, N = 48, S = 120; let w = 0;
+  for (let i = 0; i < S; i++) {
+    const t1 = t.getTime() + i * 365 * DAY / S, sh = sunHat(new Date(t1));
+    for (let j = 0; j < N; j++) { const s = state(d, new Date(t1 + j * per / N)); if (s && inShadow(s.pos, sh)) { w++; break; } }
+    if (i % 10 === 9) { await yieldUI(); if (token !== selToken) return null; }
+  }
+  return w / S;
+}
+function currentEclipseFraction(d, t) {
+  const per = d.periodMin * 60000, N = 180, sh = sunHat(t); let c = 0;
+  for (let j = 0; j < N; j++) { const s = state(d, new Date(t.getTime() + j * per / N)); if (s && inShadow(s.pos, sh)) c++; }
+  return c / N;
+}
+
+async function select(d) {
+  const token = ++selToken;
+  selected = d; t0Fresh = new Date(); eclYear = null;
+  const t = new Date(), per = d.periodMin * 60000, pts = [];
+  for (let j = 0; j <= 120; j++) { const s = state(d, new Date(t.getTime() + j * per / 120)); if (s) pts.push([s.lat, s.lng, Math.min(0.45, Math.max(0.015, (s.h / RE) * 0.35))]); }
+  world.pathsData([{ pts }]);
+  world.pointsData(clsFilter === 'ALL' ? sats : sats.filter(d => d.cls === clsFilter));
+  world.controls().autoRotate = false;
+  world.pointOfView({ lat: d.lat, lng: d.lng, altitude: Math.max(1.5, d.alt + 1.1) }, 1000);
+  eclNow = currentEclipseFraction(d, t);
+  $('empty').style.display = 'none'; $('detail').style.display = 'block'; $('detail').classList.add('show');
+  $('detail').classList.remove('enter'); void $('detail').offsetWidth; $('detail').classList.add('enter'); $('detail').scrollTop = 0;
+  $('sname').textContent = d.name;
+  $('sid').textContent = `NORAD ${d.norad} · COSPAR ${d.cospar} · e=${d.ecc.toFixed(4)}`;
+  document.querySelectorAll('#list div').forEach(el => el.classList.toggle('on', el.dataset.n === d.norad));
+  updateCard(t);
+  const y = await eclipseYear(d, t, token);
+  if (y !== null && token === selToken) { eclYear = y; updateCard(new Date()); }
+}
+
+function fmtDur(ms) {
+  const a = Math.abs(ms) / 1000, y = Math.floor(a / 31557600), r = a - y * 31557600;
+  return { y, d: Math.floor(r / 86400), h: Math.floor((r % 86400) / 3600), m: Math.floor((r % 3600) / 60), s: Math.floor(r % 60) };
+}
+
+function updateCard(t) {
+  const d = selected, s = state(d, t); if (!s) return;
+  const v = Math.hypot(s.vel.x, s.vel.y, s.vel.z), sh = inShadow(s.pos, sunHat(t));
+  $('lat').textContent = fixed(s.lat, 3) + '°'; $('lng').textContent = fixed(s.lng, 3) + '°';
+  $('alt').textContent = fixed(s.h, 1) + ' km'; $('vel').textContent = fixed(v, 3) + ' km/s';
+  $('per').textContent = `${d.periodMin.toFixed(1)} min · ${d.cls}`; $('inc').textContent = fixed(d.incl, 2) + '°';
+  const ageH = (t - d.epoch) / 3600000;
+  $('tleage').textContent = ageH < 48 ? `${ageH.toFixed(1)} h` : `${(ageH / 24).toFixed(1)} d`;
+  $('ill').innerHTML = sh ? '<span class="eclipse">Eclipse</span>' : '<span class="sunlit">Sunlit</span>';
+  const dod = +$('dod').value / 100; $('dodv').textContent = (dod * 100).toFixed(0) + '%';
+  $('ecl').textContent = (eclNow * d.periodMin).toFixed(1) + ' min';
+  if (eclYear === null) {
+    for (const id of ['eclfrac', 'cpd', 'eqcpd', 'capnow', 'know', 'kstar', 'kwin', 'soh', 'life']) $(id).textContent = '…';
+    $('tdate').textContent = 'computing yearly eclipse statistics'; $('count').innerHTML = ''; $('tdur').textContent = ''; $('warn').innerHTML = '';
+    return;
+  }
+  const cpd = d.revDay * eclYear, eq = cpd * dod;
+  $('eclfrac').textContent = (eclYear * 100).toFixed(1) + '%'; $('cpd').textContent = cpd.toFixed(2); $('eqcpd').textContent = eq.toFixed(3);
+
+  const [b0, b1] = P.beta, warn = [];
+  let t0 = t0Fresh;
+  if ($('ref').value === 'launch') {
+    if (d.launchYear) t0 = new Date(Date.UTC(d.launchYear, 6, 1)); else warn.push('Launch year not in the element set; using "fresh cell from now".');
+  }
+  const kNow = Math.max(0, (t - t0) / DAY * eq), capNow = b0 + b1 * kNow, soh = capNow / P.rated * 100;
+  const life = b1 < 0 && b0 > P.threshold ? Math.min(100, Math.max(0, (b0 - capNow) / (b0 - P.threshold) * 100)) : null;
+  $('capnow').textContent = capNow.toFixed(4) + ' Ah'; $('know').textContent = kNow.toFixed(2);
+  $('soh').textContent = capNow > 0 ? soh.toFixed(1) + '%' : 'invalid';
+  $('life').textContent = life === null ? 'n/a' : life.toFixed(1) + '%';
+  $('bar').firstElementChild.style.width = Math.min(100, Math.max(0, soh)) + '%';
+  if (kNow > P.max_cycle) warn.push(`Elapsed cycles exceed the largest measured lab cycle (${P.max_cycle}); the linear model is extrapolating and is unreliable.`);
+  if (capNow <= 0) warn.push('Linear extrapolation reaches non-physical (zero or negative) capacity, so the straight-line model is invalid this far out.');
+
+  const kStar = b1 < 0 ? (P.threshold - b0) / b1 : null, cnt = $('count');
+  if (kStar === null || eq <= 0) {
+    $('kstar').textContent = 'none'; $('kwin').textContent = '-'; $('tdate').textContent = 'No crossing predicted'; cnt.innerHTML = ''; $('tdur').textContent = '';
+    warn.push(eq <= 0 ? 'No eclipses over the sampled year, so no eclipse cycling under this model.' : 'Fitted slope is not negative; the linear model never reaches the threshold.');
+  } else {
+    $('kstar').textContent = kStar.toFixed(1);
+    if (Number.isFinite(P.rmse) && P.rmse !== null) {
+      const lo = (P.threshold + P.rmse - b0) / b1, hi = (P.threshold - P.rmse - b0) / b1;
+      $('kwin').textContent = `${Math.max(0, lo).toFixed(0)} to ${hi.toFixed(0)}`;
+    } else $('kwin').textContent = 'n/a';
+    const tc = new Date(t0.getTime() + kStar / eq * DAY), rem = tc - t, u = fmtDur(rem);
+    $('tdate').textContent = tc.toISOString().replace('T', ' ').substring(0, 19) + (rem < 0 ? ' (already passed)' : '');
+    $('tdur').textContent = `${rem < 0 ? 'Passed ' : 'In '}${u.y} y, ${u.d} d, ${u.h} h, ${u.m} min, ${u.s} s${rem < 0 ? ' ago' : ''}`;
+    cnt.innerHTML = [['YRS', u.y], ['DAYS', u.d], ['HRS', u.h], ['MIN', u.m], ['SEC', u.s]]
+      .map(([l, n]) => `<div class="u"><div class="n">${String(n).padStart(2, '0')}</div><div class="l">${l}</div></div>`).join('');
+    if (kStar > P.max_cycle) warn.push('Threshold cycle lies beyond measured data (extrapolated).');
+  }
+  if (d.cls !== 'LEO') warn.push('Non-LEO orbit: eclipses occur only in seasons; the 1-year sampling captures this approximately.');
+  warn.push('Lab cells were cycled near 24 °C with deep discharges. Spacecraft batteries are thermally controlled and use shallow depths of discharge, so this mapping is an assumption.');
+  $('warn').innerHTML = warn.join('<br><br>');
+}
+
+// ---------- list & search
+let clsFilter = 'ALL';
+function renderList() {
+  const q = $('search').value.trim().toLowerCase();
+  const base = clsFilter === 'ALL' ? sats : sats.filter(d => (d.cls || 'LEO') === clsFilter);
+  const rows = (q ? base.filter(d => d.name.toLowerCase().includes(q) || d.norad === q) : base.slice().sort((a, b) => a.name.localeCompare(b.name)));
+  $('objs').textContent = `${rows.length} / ${sats.length}`;
+  $('list').innerHTML = rows.map(d => `<div tabindex="0" role="option" data-n="${d.norad}" class="${selected && selected.norad === d.norad ? 'on' : ''}">
+    <i class="sw" style="background:${COLORS[d.cls || 'LEO']}"></i><span class="n">${d.name}</span><span class="cls mono">${d.cls || 'LEO'}</span><span class="id mono">${d.norad}</span></div>`).join('');
+}
+$('search').addEventListener('input', renderList);
+$('filters').addEventListener('click', e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  clsFilter = b.dataset.c;
+  document.querySelectorAll('#filters button').forEach(el => el.classList.toggle('on', el.dataset.c === clsFilter));
+  world.pointsData(clsFilter === 'ALL' ? sats : sats.filter(d => d.cls === clsFilter));
+  renderList();
+});
+$('list').addEventListener('click', e => { const el = e.target.closest('[data-n]'); if (el) select(sats.find(d => d.norad === el.dataset.n)); });
+$('list').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.click(); });
+$('dod').addEventListener('input', () => selected && eclYear !== null && updateCard(new Date()));
+$('ref').addEventListener('change', () => selected && eclYear !== null && updateCard(new Date()));
+
+tick(); renderList();
+setInterval(tick, 1000);
+const iss = sats.find(d => d.norad === '25544');
+if (iss) setTimeout(() => select(iss), 1500);
+</script>
+</body>
+</html>
