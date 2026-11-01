@@ -2,7 +2,12 @@
 
 **Made by Dhanush J**
 
-Interactive Streamlit research simulation for undergraduate aerospace engineering:
+### Direct Live Website Links
+- **Live Interactive Web Dashboard (Instant Access):** [https://dhrgupta096.github.io/battery-forecast/](https://dhrgupta096.github.io/battery-forecast/)
+- **Direct Full-Screen 3D Orbital Satellite & Battery Globe:** [https://dhrgupta096.github.io/battery-forecast/globe.html](https://dhrgupta096.github.io/battery-forecast/globe.html)
+- **Launch Full Python Streamlit App (Streamlit Cloud):** [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=Dhrgupta096/battery-forecast&branch=main&mainModule=app.py)
+
+Interactive research simulation for undergraduate aerospace engineering:
 1. **Linear-regression capacity forecasting** ($\hat{Q}(k) = \beta_0 + \beta_1 k$) fit exclusively on chronological training observations.
 2. **Transparent normal-equation solvers** using hand-written Gaussian elimination (REF + back-substitution) and Gauss–Jordan elimination (RREF), verified against QR/SVD least squares (`numpy.linalg.lstsq` and `scikit-learn`).
 3. **Remaining Useful Life (RUL) in discharge cycles** relative to an adjustable experimental End-of-Life threshold (default $1.4\text{ Ah}$, corresponding to $30\%$ fade from $2.0\text{ Ah}$ rated capacity), with explicit safeguards against non-negative slopes, pre-cutoff crossings, and unreached thresholds.
