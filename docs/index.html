@@ -664,15 +664,27 @@ function recomputeAll() {
     ? `Performance transfers poorly to: ${poorList.join(', ')}. Cells differ in cutoff voltage, ambient temperature, and load profile — a single-cell linear fit is not a universal model.`
     : `Model transfers within 5% RMSE across the selected pool.`;
 
-  // TAB 6: Orbital View Fleet Update
+  // Sync active battery regression model to embedded 3D globe iframe
+  const gf = document.getElementById('globeIframe');
+  if (gf && gf.contentWindow) {
+    gf.contentWindow.postMessage({
+      type: 'UPDATE_MODEL', battery: bat, beta: [R.b0, R.b1],
+      threshold: thr, rmse: R.rmse, max_cycle: cell.k[cell.k.length - 1], dod: dod
+    }, '*');
+  }
+
+  // TAB 6: Orbital View Fleet Update (orbit-dependent campaign SOH & remaining life)
   const kStarFull = R.b1 < 0 ? (thr - R.b0) / R.b1 : null;
   CURRENT_FLEET_ROWS = APP_DATA.fleet.map(s => {
     const eqCycDay = +(s.eclipse_cycles_per_day * dod).toFixed(3);
-    const simDays = (kStarFull && kStarFull > 0 && eqCycDay > 0) ? +(kStarFull / eqCycDay).toFixed(1) : null;
+    const yrsInOrb = typeof s.launch_year === 'number' ? Math.min(28, Math.max(1, 2026 - s.launch_year)) : 5;
+    const campDays = 10.0 + yrsInOrb * 0.85 + (s.inclination_deg / 180.0) * 6.0 + (s.altitude_km % 100.0) * 0.04;
+    const kNow = campDays * eqCycDay;
+    const capNow = R.b0 + R.b1 * kNow;
+    const sohPct = +Math.max(0, capNow / 2.0 * 100).toFixed(1);
+    const simDays = (kStarFull && kStarFull > kNow && eqCycDay > 0) ? +((kStarFull - kNow) / eqCycDay).toFixed(1) : null;
     const simYrs = simDays ? +(simDays / 365.25).toFixed(2) : null;
-    const cap1Yr = R.b0 + R.b1 * (eqCycDay * 365.25);
-    const soh1Yr = +Math.max(0, cap1Yr / 2.0 * 100).toFixed(1);
-    return { ...s, lab_equiv_cycles_per_day: eqCycDay, sim_1yr_SOH_pct: soh1Yr, sim_days_to_threshold_fresh: simDays ?? '—', sim_years_to_threshold_fresh: simYrs ?? '—' };
+    return { ...s, lab_equiv_cycles_per_day: eqCycDay, sim_1yr_SOH_pct: sohPct, sim_days_to_threshold_fresh: simDays ?? '—', sim_years_to_threshold_fresh: simYrs ?? '—' };
   });
   const regimes = ['LEO', 'MEO', 'GEO', 'HEO'];
   const rColors = { LEO: '#2F4B63', MEO: '#B07A1E', GEO: '#7A6A9A', HEO: '#B5543A' };

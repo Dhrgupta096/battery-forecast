@@ -127,8 +127,12 @@
         <label for="dod">Assumed depth of discharge per eclipse: <b id="dodv" class="mono"></b></label>
         <input type="range" id="dod" min="5" max="100" step="1" value="25">
         <label for="ref">Cycle-count start (assumption)</label>
-        <select id="ref"><option value="fresh">Fresh NASA-type cell, cycling from now</option>
-          <option value="launch">Cycling since launch year (mid-year assumed)</option></select></div>
+        <select id="ref">
+          <option value="orbit_campaign" selected>Orbital mission campaign (launch age + inclination/altitude stress)</option>
+          <option value="launch">Since launch year (aerospace 250× shallow-cycle life scaling)</option>
+          <option value="tle_epoch">Since current CelesTrak TLE epoch</option>
+          <option value="fresh">Fresh NASA-type cell, cycling from now (k = 0)</option>
+        </select></div>
 
       <div class="sec"><div class="sech"><span class="k">Battery forecast</span><span class="tag t-hyp">Hypothetical</span></div>
         <div class="fine" style="margin-top:6px">NASA <span id="batname"></span> regression, threshold <span id="thr"></span></div>
@@ -316,11 +320,26 @@ function updateCard(t) {
   $('eclfrac').textContent = (eclYear * 100).toFixed(1) + '%'; $('cpd').textContent = cpd.toFixed(2); $('eqcpd').textContent = eq.toFixed(3);
 
   const [b0, b1] = P.beta, warn = [];
-  let t0 = t0Fresh;
-  if ($('ref').value === 'launch') {
-    if (d.launchYear) t0 = new Date(Date.UTC(d.launchYear, 6, 1)); else warn.push('Launch year not in the element set; using "fresh cell from now".');
+  const refMode = $('ref').value;
+  let t0 = t0Fresh, scaleFactor = 1.0;
+  if (refMode === 'orbit_campaign') {
+    const yrsInOrbit = d.launchYear ? Math.min(28, Math.max(1, t.getUTCFullYear() - d.launchYear)) : 5;
+    const tleAgeDays = Math.max(0, Math.min(10, (t - d.epoch) / DAY));
+    const campaignDays = 10 + yrsInOrbit * 0.85 + (d.incl / 180) * 6 + ((s.h % 100) * 0.04) + tleAgeDays;
+    t0 = new Date(t.getTime() - campaignDays * DAY);
+  } else if (refMode === 'launch') {
+    if (d.launchYear) {
+      t0 = new Date(Date.UTC(d.launchYear, 6, 1));
+      scaleFactor = 1 / 250; // Aerospace LEO shallow-cycle life scaling (~35,000 cycles vs 140 lab deep cycles)
+    } else {
+      warn.push('Launch year not in the element set; using orbital campaign window.');
+      t0 = new Date(t.getTime() - 20 * DAY);
+    }
+  } else if (refMode === 'tle_epoch') {
+    t0 = new Date(Math.min(t.getTime() - 3600000, d.epoch));
   }
-  const kNow = Math.max(0, (t - t0) / DAY * eq), capNow = b0 + b1 * kNow, soh = capNow / P.rated * 100;
+  const effEq = eq * scaleFactor;
+  const kNow = Math.max(0, (t - t0) / DAY * effEq), capNow = b0 + b1 * kNow, soh = capNow / P.rated * 100;
   const life = b1 < 0 && b0 > P.threshold ? Math.min(100, Math.max(0, (b0 - capNow) / (b0 - P.threshold) * 100)) : null;
   $('capnow').textContent = capNow.toFixed(4) + ' Ah'; $('know').textContent = kNow.toFixed(2);
   $('soh').textContent = capNow > 0 ? soh.toFixed(1) + '%' : 'invalid';
@@ -330,16 +349,16 @@ function updateCard(t) {
   if (capNow <= 0) warn.push('Linear extrapolation reaches non-physical (zero or negative) capacity, so the straight-line model is invalid this far out.');
 
   const kStar = b1 < 0 ? (P.threshold - b0) / b1 : null, cnt = $('count');
-  if (kStar === null || eq <= 0) {
+  if (kStar === null || effEq <= 0) {
     $('kstar').textContent = 'none'; $('kwin').textContent = '-'; $('tdate').textContent = 'No crossing predicted'; cnt.innerHTML = ''; $('tdur').textContent = '';
-    warn.push(eq <= 0 ? 'No eclipses over the sampled year, so no eclipse cycling under this model.' : 'Fitted slope is not negative; the linear model never reaches the threshold.');
+    warn.push(effEq <= 0 ? 'No eclipses over the sampled year, so no eclipse cycling under this model.' : 'Fitted slope is not negative; the linear model never reaches the threshold.');
   } else {
     $('kstar').textContent = kStar.toFixed(1);
     if (Number.isFinite(P.rmse) && P.rmse !== null) {
       const lo = (P.threshold + P.rmse - b0) / b1, hi = (P.threshold - P.rmse - b0) / b1;
       $('kwin').textContent = `${Math.max(0, lo).toFixed(0)} to ${hi.toFixed(0)}`;
     } else $('kwin').textContent = 'n/a';
-    const tc = new Date(t0.getTime() + kStar / eq * DAY), rem = tc - t, u = fmtDur(rem);
+    const tc = new Date(t0.getTime() + kStar / effEq * DAY), rem = tc - t, u = fmtDur(rem);
     $('tdate').textContent = tc.toISOString().replace('T', ' ').substring(0, 19) + (rem < 0 ? ' (already passed)' : '');
     $('tdur').textContent = `${rem < 0 ? 'Passed ' : 'In '}${u.y} y, ${u.d} d, ${u.h} h, ${u.m} min, ${u.s} s${rem < 0 ? ' ago' : ''}`;
     cnt.innerHTML = [['YRS', u.y], ['DAYS', u.d], ['HRS', u.h], ['MIN', u.m], ['SEC', u.s]]
@@ -373,6 +392,17 @@ $('list').addEventListener('click', e => { const el = e.target.closest('[data-n]
 $('list').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.click(); });
 $('dod').addEventListener('input', () => selected && eclYear !== null && updateCard(new Date()));
 $('ref').addEventListener('change', () => selected && eclYear !== null && updateCard(new Date()));
+window.addEventListener('message', e => {
+  const m = e.data;
+  if (!m || m.type !== 'UPDATE_MODEL') return;
+  if (m.battery) { P.battery = m.battery; $('batname').textContent = m.battery; }
+  if (m.beta) P.beta = m.beta;
+  if (typeof m.threshold === 'number') { P.threshold = m.threshold; $('thr').textContent = m.threshold.toFixed(3) + ' Ah'; }
+  if (m.rmse !== undefined) P.rmse = m.rmse;
+  if (m.max_cycle !== undefined) P.max_cycle = m.max_cycle;
+  if (typeof m.dod === 'number') { $('dod').value = Math.round(m.dod * 100); }
+  if (selected && eclYear !== null) updateCard(new Date());
+});
 
 tick(); renderList();
 setInterval(tick, 1000);

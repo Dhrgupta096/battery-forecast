@@ -797,11 +797,13 @@ def analyze_satellite_fleet(
 
             ecl_cycles_day = mean_motion * ecl_orbit_frac_yr
             eq_cycles_day = ecl_cycles_day * assumed_dod
-            sim_days = (k_star / eq_cycles_day) if (k_star is not None and k_star > 0 and eq_cycles_day > 0) else None
+            yrs_in_orbit = min(28, max(1, 2026 - launch_year)) if launch_year is not None else 5
+            campaign_days = 10.0 + yrs_in_orbit * 0.85 + (incl_deg / 180.0) * 6.0 + (alt_km % 100.0) * 0.04
+            k_now = campaign_days * eq_cycles_day
+            cap_now = beta0 + beta1 * k_now
+            soh_1yr_pct = max(0.0, cap_now / rated_ah * 100.0)
+            sim_days = ((k_star - k_now) / eq_cycles_day) if (k_star is not None and k_star > k_now and eq_cycles_day > 0) else None
             sim_years = (sim_days / 365.25) if sim_days is not None else None
-            # Projected SOH after 1 year of simulated fresh-cell orbital cycling
-            cap_1yr = beta0 + beta1 * (eq_cycles_day * 365.25)
-            soh_1yr_pct = max(0.0, cap_1yr / rated_ah * 100.0)
 
             fleet.append({
                 "satellite": name.replace("0 ", "").strip(),
